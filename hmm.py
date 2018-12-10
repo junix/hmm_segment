@@ -1,6 +1,7 @@
 from enum import Enum
 
 import numpy as np
+from itertools import islice
 
 _training_data = "/Users/junix/nlp/icwb2-data/training/msr_training.utf8"
 
@@ -22,12 +23,6 @@ class State(Enum):
     @classmethod
     def state_count(cls):
         return len(cls.states())
-
-
-def int_state(s):
-    if isinstance(s, int):
-        return s
-    return s.value
 
 
 class CharSet:
@@ -95,13 +90,13 @@ class HMM:
             path[s] = [s]
 
         # Run Viterbi for t > 0
-        for t in range(1, len(text)):
+        for t, int_char in islice(enumerate(int_text), 1, None):
             V.append({})
             new_path = {}
 
             for s in State.int_states():
                 prob, state = max([
-                    (V[t - 1][s0] * self.trans[s0][s] * self.emits[s][int_text[t]], s0)
+                    (V[t - 1][s0] * self.trans[s0][s] * self.emits[s][int_char], s0)
                     for s0 in State.int_states()])
                 V[t][s] = prob
                 new_path[s] = path[state] + [s]
