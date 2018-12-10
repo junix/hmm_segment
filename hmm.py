@@ -82,45 +82,38 @@ class HMM:
 
     def viterbi(self, text):
         int_text = [self.charset[c] for c in text]
-        V = [{}]
+        step_state_probs = np.zeros((len(int_text), State.state_count()))
         path = {}
 
         # Initialize base cases (t == 0)
         for s in State.int_states():
-            V[0][s] = self.inits[s] * self.emits[s][int_text[0]]
+            step_state_probs[0][s] = self.inits[s] * self.emits[s][int_text[0]]
             path[s] = [s]
 
         # Run Viterbi for t > 0
         for t, int_char in islice(enumerate(int_text), 1, None):
-            V.append({})
             new_path = {}
 
             for s in State.int_states():
-                prob, state = max([
-                    (V[t - 1][s0] * self.trans[s0][s] * self.emits[s][int_char], s0)
+                prob, prev_s = max([
+                    (step_state_probs[t - 1][s0] * self.trans[s0][s] * self.emits[s][int_char], s0)
                     for s0 in State.int_states()])
-                V[t][s] = prob
-                new_path[s] = path[state] + [s]
+                step_state_probs[t][s] = prob
+                new_path[s] = path[prev_s] + [s]
 
             # Don't need to remember the old paths
             path = new_path
 
-        prob, state = max([(V[len(text) - 1][s], s) for s in State.int_states()])
-        return prob, path[state]
+        prob, prev_s = max([(step_state_probs[len(text) - 1][s], s) for s in State.int_states()])
+        return path[prev_s]
 
     def cut(self, text):
-        def get_word(xs):
-            for i, (_, s) in enumerate(xs):
-                if s in (State.S, State.E):
-                    return ''.join(c for c, _ in xs[:i + 1])
-            return ''.join(c for c, _ in xs)
-
-        _, state_seq = self.viterbi(text)
-        seq = list(zip(text, (State(s) for s in state_seq)))
-        while seq:
-            word = get_word(seq)
-            yield word
-            seq = seq[len(word):]
+        acc = []
+        for c, s in zip(text, self.viterbi(text)):
+            acc.append(c)
+            if s in (State.S.value, State.E.value):
+                yield ''.join(acc)
+                acc = []
 
 
 def build_charset(train_set):
@@ -180,4 +173,5 @@ def build_hmm():
 
 if __name__ == '__main__':
     hmm = build_hmm()
-    print('/'.join(hmm.cut("即使是非常前沿的人工智能系统也不会像人类那样拥有相同的驱动力")))
+    sentence = '然而那篇文章显然有很多不足的地方，比如介绍不够清晰，也不够完整，还没有实现，在这里我们重提这个模型，将相关内容补充完成。'
+    print('/'.join(hmm.cut(sentence)))
