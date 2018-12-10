@@ -1,4 +1,5 @@
 from enum import Enum
+from itertools import *
 
 import numpy as np
 from itertools import islice
@@ -108,20 +109,18 @@ class HMM:
         return prob, path[state]
 
     def cut(self, text):
+        def get_word(xs):
+            for i, (_, s) in enumerate(xs):
+                if s in (State.S, State.E):
+                    return ''.join(c for c, _ in xs[:i + 1])
+            return ''.join(c for c, _ in xs)
+
         _, state_seq = self.viterbi(text)
-        word = []
-        for c, s in zip(text, state_seq):
-            s = State(s)
-            if s == State.S:
-                yield c
-            elif s == State.B:
-                word = [c]
-            elif s == State.M:
-                word.append(c)
-            else:
-                word.append(c)
-                yield ''.join(word)
-                word = []
+        seq = list(zip(text, (State(s) for s in state_seq)))
+        while seq:
+            word = get_word(seq)
+            yield word
+            seq = seq[len(word):]
 
 
 def build_charset(train_set):
